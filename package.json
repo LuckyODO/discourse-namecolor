@@ -1,6 +1,9 @@
 {
+  "name": "discourse-namecolor",
   "private": true,
+  "description": "Discourse theme component for user and primary group name colors.",
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "7.29.0",
     "@discourse/lint-configs": "3.0.1",
     "@glint/ember-tsc": "1.1.1",
     "concurrently": "^9.2.1",
