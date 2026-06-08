@@ -1,1 +1,17 @@
-// Theme's SCSS
+body.discourse-namecolor-enabled {
+  .discourse-namecolor-name,
+  .discourse-namecolor-name a,
+  .discourse-namecolor-name .d-icon,
+  a.discourse-namecolor-name,
+  a.mention.discourse-namecolor-name {
+    color: var(--discourse-namecolor-color) !important;
+  }
+
+  .discourse-namecolor-name .name-username-wrapper {
+    color: inherit !important;
+  }
+
+  &.discourse-namecolor-bold .discourse-namecolor-name {
+    font-weight: 600;
+  }
+}

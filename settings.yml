@@ -1,2 +1,55 @@
-example_setting:
+enabled:
   default: true
+  type: bool
+
+user_color_rules:
+  type: objects
+  default: []
+  schema:
+    name: user_color_rule
+    identifier: username
+    properties:
+      username:
+        type: string
+        required: true
+        validations:
+          min_length: 1
+          max_length: 64
+      color:
+        type: string
+        required: true
+        validations:
+          min_length: 3
+          max_length: 64
+
+group_color_rules:
+  type: objects
+  default: []
+  schema:
+    name: group_color_rule
+    identifier: group_name
+    properties:
+      group_name:
+        type: string
+        required: true
+        validations:
+          min_length: 1
+          max_length: 128
+      color:
+        type: string
+        required: true
+        validations:
+          min_length: 3
+          max_length: 64
+
+use_default_group_palette:
+  default: false
+  type: bool
+
+apply_to_mentions:
+  default: true
+  type: bool
+
+make_colored_names_bold:
+  default: false
+  type: bool
