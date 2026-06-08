@@ -7,7 +7,6 @@ const NAME_TARGET_SELECTOR = [
   ".topic-post .names .second",
   ".post-list-item .post-member-info.names .name",
   ".user-card .names__primary",
-  ".user-card .names__secondary",
   "a[data-user-card]",
   "a.mention",
 ].join(", ");
