@@ -1,6 +1,10 @@
+import { ajax } from "discourse/lib/ajax";
+
 const APPLIED_CLASS = "discourse-namecolor-name";
 const ENABLED_CLASS = "discourse-namecolor-enabled";
 const BOLD_CLASS = "discourse-namecolor-bold";
+const GROUP_CLASS_PREFIX = "discourse-namecolor-group--";
+const MEMBERSHIP_LOOKUP_BATCH_SIZE = 50;
 
 const NAME_TARGET_SELECTOR = [
   ".topic-post .names .first",
@@ -53,12 +57,36 @@ export function buildNameColorRules(themeSettings) {
 
   return {
     applyToMentions: themeSettings?.apply_to_mentions !== false,
+    checkedMemberships: new Set(),
     enabled: themeSettings?.enabled !== false,
     groupColors,
+    groupNames: Array.from(groupColors.keys()),
+    groupLookupFailures: new Set(),
     makeColoredNamesBold: themeSettings?.make_colored_names_bold === true,
+    membershipLookupCallback: null,
+    membershipLookupInFlight: false,
+    membershipLookupScheduled: false,
+    pendingMemberships: new Map(),
     useDefaultGroupPalette: themeSettings?.use_default_group_palette === true,
     userColors,
+    usernameGroups: new Map(),
   };
+}
+
+export function setMembershipLookupCallback(rules, callback) {
+  rules.membershipLookupCallback = callback;
+}
+
+export function registerNameColorTransformers(api, rules) {
+  api.registerValueTransformer("poster-name-class", ({ value, context }) => {
+    const groupName = trustLevelGroupNameForUser(context?.user, rules);
+
+    if (!groupName) {
+      return value;
+    }
+
+    return [...classListForValue(value), classNameForGroup(groupName)];
+  });
 }
 
 export function syncDocumentState(rules) {
@@ -78,6 +106,8 @@ export function applyNameColors(root, rules) {
 
   targets.forEach((target) => {
     const context = contextForTarget(target, rules);
+    queueMembershipLookups(context.username, rules);
+
     const match = colorForContext(context, rules);
     const paintTargets = collectPaintTargets(target);
 
@@ -132,13 +162,15 @@ export function colorForContext(context, rules) {
     return { color: rules.userColors.get(context.username), source: "user" };
   }
 
-  if (context.groupName && rules.groupColors.has(context.groupName)) {
-    return { color: rules.groupColors.get(context.groupName), source: "group" };
+  const groupName = prioritizedGroupNameForContext(context, rules);
+
+  if (groupName && rules.groupColors.has(groupName)) {
+    return { color: rules.groupColors.get(groupName), source: "group" };
   }
 
-  if (context.groupName && rules.useDefaultGroupPalette) {
+  if (groupName && rules.useDefaultGroupPalette) {
     return {
-      color: paletteColorFor(context.groupName),
+      color: paletteColorFor(groupName),
       source: "default-group",
     };
   }
@@ -265,6 +297,14 @@ function groupNameFromClassList(classList) {
     return "";
   }
 
+  const nameColorGroup = Array.from(classList).find((className) =>
+    className.startsWith(GROUP_CLASS_PREFIX)
+  );
+
+  if (nameColorGroup) {
+    return normalizeGroupName(nameColorGroup.slice(GROUP_CLASS_PREFIX.length));
+  }
+
   const doubleDashGroup = Array.from(classList).find((className) =>
     className.startsWith("group--")
   );
@@ -317,4 +357,186 @@ function paletteColorFor(groupName) {
   }
 
   return PALETTE[hash];
+}
+
+function prioritizedGroupNameForContext(context, rules) {
+  const candidateGroups = new Set();
+
+  if (context.groupName) {
+    candidateGroups.add(context.groupName);
+  }
+
+  if (context.username && rules.usernameGroups.has(context.username)) {
+    rules.usernameGroups
+      .get(context.username)
+      .forEach((groupName) => candidateGroups.add(groupName));
+  }
+
+  for (const groupName of rules.groupNames) {
+    if (candidateGroups.has(groupName)) {
+      return groupName;
+    }
+  }
+
+  return candidateGroups.values().next().value;
+}
+
+function trustLevelGroupNameForUser(user, rules) {
+  const trustLevel = Number(user?.trust_level);
+
+  if (!Number.isInteger(trustLevel)) {
+    return "";
+  }
+
+  const groupName = normalizeGroupName(`trust_level_${trustLevel}`);
+
+  return rules.groupColors.has(groupName) ? groupName : "";
+}
+
+function classNameForGroup(groupName) {
+  return `${GROUP_CLASS_PREFIX}${groupName}`;
+}
+
+function classListForValue(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return value ? String(value).split(/\s+/).filter(Boolean) : [];
+}
+
+function queueMembershipLookups(username, rules) {
+  if (!username || !rules.groupNames.length || rules.userColors.has(username)) {
+    return;
+  }
+
+  rules.groupNames.forEach((groupName) => {
+    if (rules.groupLookupFailures.has(groupName)) {
+      return;
+    }
+
+    const key = membershipKey(groupName, username);
+
+    if (rules.checkedMemberships.has(key)) {
+      return;
+    }
+
+    if (!rules.pendingMemberships.has(groupName)) {
+      rules.pendingMemberships.set(groupName, new Set());
+    }
+
+    rules.pendingMemberships.get(groupName).add(username);
+  });
+
+  scheduleMembershipLookup(rules);
+}
+
+function scheduleMembershipLookup(rules) {
+  if (rules.membershipLookupScheduled || rules.membershipLookupInFlight) {
+    return;
+  }
+
+  rules.membershipLookupScheduled = true;
+
+  requestAnimationFrame(() => {
+    rules.membershipLookupScheduled = false;
+    loadQueuedMemberships(rules);
+  });
+}
+
+async function loadQueuedMemberships(rules) {
+  if (rules.membershipLookupInFlight || !rules.pendingMemberships.size) {
+    return;
+  }
+
+  rules.membershipLookupInFlight = true;
+
+  try {
+    const pendingMemberships = rules.pendingMemberships;
+    rules.pendingMemberships = new Map();
+    let changed = false;
+
+    for (const [groupName, usernames] of pendingMemberships.entries()) {
+      const batches = batchUsernames(Array.from(usernames));
+
+      for (const batch of batches) {
+        const matchedUsernames = await loadGroupMemberUsernames(
+          groupName,
+          batch,
+          rules
+        );
+
+        for (const username of batch) {
+          rules.checkedMemberships.add(membershipKey(groupName, username));
+
+          if (matchedUsernames.has(username)) {
+            addUsernameGroup(rules, username, groupName);
+            changed = true;
+          }
+        }
+      }
+    }
+
+    if (changed) {
+      rules.membershipLookupCallback?.();
+    }
+  } finally {
+    rules.membershipLookupInFlight = false;
+
+    if (rules.pendingMemberships.size) {
+      scheduleMembershipLookup(rules);
+    }
+  }
+}
+
+async function loadGroupMemberUsernames(groupName, usernames, rules) {
+  const requestedUsernames = new Set(usernames);
+
+  try {
+    const response = await ajax(
+      `/groups/${encodeURIComponent(groupName)}/members.json`,
+      {
+        data: {
+          filter: usernames.join(","),
+          limit: MEMBERSHIP_LOOKUP_BATCH_SIZE,
+        },
+      }
+    );
+
+    return new Set(
+      (response.members || [])
+        .map((member) => normalizeUsername(member.username))
+        .filter((username) => requestedUsernames.has(username))
+    );
+  } catch {
+    rules.groupLookupFailures.add(groupName);
+
+    return new Set();
+  }
+}
+
+function addUsernameGroup(rules, username, groupName) {
+  if (!rules.usernameGroups.has(username)) {
+    rules.usernameGroups.set(username, new Set());
+  }
+
+  rules.usernameGroups.get(username).add(groupName);
+}
+
+function batchUsernames(usernames) {
+  const batches = [];
+
+  for (
+    let index = 0;
+    index < usernames.length;
+    index += MEMBERSHIP_LOOKUP_BATCH_SIZE
+  ) {
+    batches.push(usernames.slice(index, index + MEMBERSHIP_LOOKUP_BATCH_SIZE));
+  }
+
+  return batches;
+}
+
+function membershipKey(groupName, username) {
+  return `${groupName}:${username}`;
 }

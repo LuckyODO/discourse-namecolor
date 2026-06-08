@@ -1,6 +1,6 @@
 en:
   theme_metadata:
-    description: "为指定用户和主群组添加可配置的用户名颜色。"
+    description: "为指定用户和群组成员添加可配置的用户名颜色。"
     settings:
       enabled: "启用 Discourse Name Color。"
       user_color_rules:
@@ -14,15 +14,15 @@ en:
               label: "颜色"
               description: "填写安全的 CSS 颜色，例如 #e53935、rgb(229 57 53) 或 var(--tertiary)。"
       group_color_rules:
-        description: "主群组颜色。仅在 Discourse 已暴露用户主群组的位置生效。"
+        description: "群组成员颜色。可填写普通群组或自动群组名称，例如 trust_level_1。"
         schema:
           properties:
             group_name:
               label: "群组名称"
-              description: "填写群组 URL 中的名称，例如 /g/admins 对应 admins。"
+              description: "填写群组 URL 中的名称，例如 /g/admins 对应 admins；自动群组可填写 trust_level_1。"
             color:
               label: "颜色"
               description: "填写安全的 CSS 颜色，例如 #2f6fbb、hsl(210 60% 45%) 或 var(--tertiary)。"
-      use_default_group_palette: "为没有自定义颜色的主群组使用内置稳定色板。"
+      use_default_group_palette: "为没有自定义颜色但已暴露在页面上的群组使用内置稳定色板。"
       apply_to_mentions: "将指定用户颜色应用到帖子中的 @提及。"
       make_colored_names_bold: "让已着色的名称略微加粗。"

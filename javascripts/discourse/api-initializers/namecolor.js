@@ -4,6 +4,8 @@ import {
   applyNameColors,
   buildNameColorRules,
   observeNameColorTargets,
+  registerNameColorTransformers,
+  setMembershipLookupCallback,
   syncDocumentState,
 } from "../lib/namecolor";
 
@@ -13,6 +15,9 @@ export default apiInitializer((api) => {
   syncDocumentState(rules);
 
   const apply = () => applyNameColors(document, rules);
+
+  setMembershipLookupCallback(rules, apply);
+  registerNameColorTransformers(api, rules);
 
   api.onPageChange(apply);
   api.decorateCookedElement((element) => applyNameColors(element, rules));

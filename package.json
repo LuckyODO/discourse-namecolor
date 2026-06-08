@@ -1,7 +1,7 @@
 {
   "name": "discourse-namecolor",
   "private": true,
-  "description": "Discourse theme component for user and primary group name colors.",
+  "description": "Discourse theme component for user and group member name colors.",
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "7.29.0",
     "@discourse/lint-configs": "3.0.1",
