@@ -4,25 +4,25 @@ en:
     settings:
       enabled: "启用 Discourse Name Color。"
       user_color_rules:
-        description: "指定用户颜色。这里的颜色永远优先于群组颜色。"
+        description: "指定用户颜色或渐变。这里的规则永远优先于群组规则。"
         schema:
           properties:
             username:
               label: "用户名"
               description: "填写不带 @ 的用户名，匹配时不区分大小写。"
             color:
-              label: "颜色"
-              description: "填写安全的 CSS 颜色，例如 #e53935、rgb(229 57 53) 或 var(--tertiary)。"
+              label: "颜色或渐变"
+              description: "填写安全的 CSS 颜色或渐变，例如 #e53935、rgb(229 57 53)、var(--tertiary) 或 linear-gradient(90deg, #e53935, #1e88e5)。"
       group_color_rules:
-        description: "群组成员颜色。可填写普通群组或自动群组名称，例如 trust_level_1。"
+        description: "群组成员颜色或渐变。可填写普通群组或自动群组名称，例如 trust_level_1。"
         schema:
           properties:
             group_name:
               label: "群组名称"
               description: "填写群组 URL 中的名称，例如 /g/admins 对应 admins；自动群组可填写 trust_level_1。"
             color:
-              label: "颜色"
-              description: "填写安全的 CSS 颜色，例如 #2f6fbb、hsl(210 60% 45%) 或 var(--tertiary)。"
+              label: "颜色或渐变"
+              description: "填写安全的 CSS 颜色或渐变，例如 #2f6fbb、hsl(210 60% 45%)、var(--tertiary) 或 linear-gradient(90deg, #2f6fbb, #a24f89)。"
       use_default_group_palette: "为没有自定义颜色但已暴露在页面上的群组使用内置稳定色板。"
       apply_to_mentions: "将指定用户颜色应用到帖子中的 @提及。"
       make_colored_names_bold: "让已着色的名称略微加粗。"

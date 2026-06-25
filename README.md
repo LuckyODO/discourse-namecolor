@@ -19,18 +19,20 @@ Discourse Name Color 是一个 Discourse 主题组件，用于按“指定用户
 
 可在主题组件控制面板里配置：
 
-- `user_color_rules`：指定用户名和颜色，优先级最高。
-- `group_color_rules`：指定群组名称和颜色，例如 `trust_level_1`。
+- `user_color_rules`：指定用户名和颜色或渐变，优先级最高。
+- `group_color_rules`：指定群组名称和颜色或渐变，例如 `trust_level_1`。
 - `use_default_group_palette`：为没有自定义颜色但已暴露在页面上的群组使用内置稳定色板，默认关闭。
 - `apply_to_mentions`：将指定用户颜色应用到帖子中的 @提及，默认开启。
 - `make_colored_names_bold`：让已着色名称略微加粗，默认关闭。
 
-颜色支持安全的 CSS 颜色值，例如：
+颜色支持安全的 CSS 颜色值和 CSS 渐变，例如：
 
 - `#e53935`
 - `rgb(229 57 53)`
 - `hsl(210 60% 45%)`
 - `var(--tertiary)`
+- `linear-gradient(90deg, #e53935, #1e88e5)`
+- `radial-gradient(circle, #ffca28, #e53935)`
 
 ## 生效范围
 

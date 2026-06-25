@@ -30,6 +30,57 @@ const PALETTE = [
 
 const SAFE_COLOR_PATTERN =
   /^(#[0-9a-f]{3,8}|[a-z][a-z0-9-]*|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([a-z0-9\s.,%/+_-]+\)|var\(--[a-z0-9_-]+\))$/i;
+const GRADIENT_PATTERN =
+  /^(?:repeating-)?(?:linear|radial|conic)-gradient\(.+\)$/i;
+const UNSAFE_CSS_VALUE_PATTERN =
+  /[;"'{}<>\\]|url\s*\(|image-set\s*\(|expression\s*\(|@import/i;
+const COLOR_TOKEN_PATTERN =
+  /#[0-9a-f]{3,8}\b|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([^()]+\)|var\(--[a-z0-9_-]+\)|\b[a-z][a-z0-9-]*\b/gi;
+const NON_COLOR_GRADIENT_WORDS = new Set([
+  "at",
+  "a98-rgb",
+  "bottom",
+  "circle",
+  "closest-corner",
+  "closest-side",
+  "conic-gradient",
+  "decreasing",
+  "display-p3",
+  "ellipse",
+  "farther-corner",
+  "farther-side",
+  "farthest-corner",
+  "farthest-side",
+  "from",
+  "hsl",
+  "hue",
+  "hwb",
+  "in",
+  "increasing",
+  "lab",
+  "left",
+  "linear-gradient",
+  "lch",
+  "longer",
+  "oklab",
+  "oklch",
+  "prophoto-rgb",
+  "radial-gradient",
+  "rec2020",
+  "repeating-conic-gradient",
+  "repeating-linear-gradient",
+  "repeating-radial-gradient",
+  "right",
+  "shorter",
+  "side",
+  "srgb",
+  "srgb-linear",
+  "to",
+  "top",
+  "xyz",
+  "xyz-d50",
+  "xyz-d65",
+]);
 
 const INVALID_GROUP_NAMES = new Set(["", "undefined", "null"]);
 
@@ -194,7 +245,11 @@ export function normalizeGroupName(groupName) {
 export function normalizeColor(color) {
   const normalized = String(color || "").trim();
 
-  return SAFE_COLOR_PATTERN.test(normalized) ? normalized : "";
+  if (SAFE_COLOR_PATTERN.test(normalized)) {
+    return normalized;
+  }
+
+  return isSafeGradient(normalized) ? normalized : "";
 }
 
 function rowsFor(value) {
@@ -332,10 +387,29 @@ function collectPaintTargets(target) {
 }
 
 function applyColor(element, color, source) {
+  const gradient = isGradient(color);
+  const fallbackColor = gradient ? fallbackColorForGradient(color) : color;
+
   element.classList.add(APPLIED_CLASS);
   element.dataset.namecolorSource = source;
-  element.style.setProperty("--discourse-namecolor-color", color);
-  element.style.setProperty("color", color, "important");
+  element.dataset.namecolorKind = gradient ? "gradient" : "solid";
+  element.style.setProperty("--discourse-namecolor-color", fallbackColor);
+  element.style.removeProperty("--discourse-namecolor-gradient");
+  element.style.removeProperty("background-image");
+  element.style.removeProperty("background-clip");
+  element.style.removeProperty("-webkit-background-clip");
+  element.style.removeProperty("-webkit-text-fill-color");
+
+  if (gradient && !element.classList.contains("d-icon")) {
+    element.style.setProperty("--discourse-namecolor-gradient", color);
+    element.style.setProperty("background-image", color);
+    element.style.setProperty("background-clip", "text");
+    element.style.setProperty("-webkit-background-clip", "text");
+    element.style.setProperty("-webkit-text-fill-color", "transparent");
+    element.style.setProperty("color", "transparent", "important");
+  } else {
+    element.style.setProperty("color", fallbackColor, "important");
+  }
 }
 
 function clearColor(element) {
@@ -345,7 +419,13 @@ function clearColor(element) {
 
   element.classList.remove(APPLIED_CLASS);
   delete element.dataset.namecolorSource;
+  delete element.dataset.namecolorKind;
   element.style.removeProperty("--discourse-namecolor-color");
+  element.style.removeProperty("--discourse-namecolor-gradient");
+  element.style.removeProperty("background-image");
+  element.style.removeProperty("background-clip");
+  element.style.removeProperty("-webkit-background-clip");
+  element.style.removeProperty("-webkit-text-fill-color");
   element.style.removeProperty("color");
 }
 
@@ -539,4 +619,57 @@ function batchUsernames(usernames) {
 
 function membershipKey(groupName, username) {
   return `${groupName}:${username}`;
+}
+
+function isSafeGradient(value) {
+  return (
+    GRADIENT_PATTERN.test(value) &&
+    value.length <= 512 &&
+    !UNSAFE_CSS_VALUE_PATTERN.test(value) &&
+    hasBalancedParentheses(value) &&
+    supportsCssValue("background-image", value)
+  );
+}
+
+function isGradient(value) {
+  return GRADIENT_PATTERN.test(value);
+}
+
+function fallbackColorForGradient(value) {
+  COLOR_TOKEN_PATTERN.lastIndex = 0;
+
+  let match;
+
+  while ((match = COLOR_TOKEN_PATTERN.exec(value))) {
+    const token = match[0];
+    const normalizedToken = token.toLowerCase();
+
+    if (!NON_COLOR_GRADIENT_WORDS.has(normalizedToken)) {
+      return token;
+    }
+  }
+
+  return "var(--primary)";
+}
+
+function hasBalancedParentheses(value) {
+  let depth = 0;
+
+  for (const character of value) {
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+    }
+
+    if (depth < 0) {
+      return false;
+    }
+  }
+
+  return depth === 0;
+}
+
+function supportsCssValue(property, value) {
+  return typeof CSS === "undefined" || CSS.supports(property, value);
 }

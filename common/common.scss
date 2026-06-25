@@ -11,6 +11,18 @@ body.discourse-namecolor-enabled {
     color: inherit !important;
   }
 
+  .discourse-namecolor-name[data-namecolor-kind="gradient"]:not(.d-icon) {
+    background-image: var(--discourse-namecolor-gradient);
+    background-clip: text;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .discourse-namecolor-name[data-namecolor-kind="gradient"].d-icon {
+    background-image: none;
+    -webkit-text-fill-color: currentcolor;
+  }
+
   &.discourse-namecolor-bold .discourse-namecolor-name {
     font-weight: 600;
   }

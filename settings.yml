@@ -20,7 +20,7 @@ user_color_rules:
         required: true
         validations:
           min_length: 3
-          max_length: 64
+          max_length: 512
 
 group_color_rules:
   type: objects
@@ -40,7 +40,7 @@ group_color_rules:
         required: true
         validations:
           min_length: 3
-          max_length: 64
+          max_length: 512
 
 use_default_group_palette:
   default: false
