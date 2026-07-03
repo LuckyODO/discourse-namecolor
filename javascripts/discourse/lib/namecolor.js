@@ -11,6 +11,7 @@ const NAME_TARGET_SELECTOR = [
   ".topic-post .names .second",
   ".post-list-item .post-member-info.names .name",
   ".user-card .names__primary",
+  ".chat-message-info__username[data-user-card] .chat-message-info__username__name",
   "a[data-user-card]",
   "a.mention",
 ].join(", ");
@@ -290,7 +291,8 @@ function usernameForTarget(target, rules) {
 
   const userCardTarget = target.matches("[data-user-card]")
     ? target
-    : target.querySelector("[data-user-card]");
+    : target.closest("[data-user-card]") ||
+      target.querySelector("[data-user-card]");
 
   if (userCardTarget?.dataset?.userCard) {
     return normalizeUsername(userCardTarget.dataset.userCard);
@@ -340,7 +342,9 @@ function groupNameForTarget(target) {
     return primaryGroup;
   }
 
-  const groupedContainer = target.closest(".user-card, .post-list-item");
+  const groupedContainer = target.closest(
+    ".chat-message-info__username, .user-card, .post-list-item"
+  );
 
   return groupedContainer
     ? groupNameFromClassList(groupedContainer.classList)
@@ -380,7 +384,16 @@ function collectPaintTargets(target) {
   const targets = new Set([target]);
 
   target
-    .querySelectorAll?.("a, .name-username-wrapper, .d-icon")
+    .querySelectorAll?.(
+      [
+        "a",
+        ".chat-message-info__username__name",
+        ".chat-user-display-name__name",
+        ".chat-user-display-name__username",
+        ".name-username-wrapper",
+        ".d-icon",
+      ].join(", ")
+    )
     .forEach((element) => targets.add(element));
 
   return targets;
