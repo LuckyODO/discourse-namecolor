@@ -5,7 +5,7 @@
   "about_url": "https://github.com/LuckyODO/discourse-namecolor",
   "license_url": "https://github.com/LuckyODO/discourse-namecolor/blob/main/LICENSE",
   "learn_more": "https://github.com/LuckyODO/discourse-namecolor#readme",
-  "theme_version": "1.0.0",
+  "theme_version": "1.0.1",
   "minimum_discourse_version": "3.3.0.beta1",
   "maximum_discourse_version": null,
   "assets": {},
